@@ -1,0 +1,9 @@
+Data.zip
+GoogleNews-vectors-negative300.bin
+__MACOSX/
+__pycache__/
+auxiliary_files/
+datasets/
+handcrafted_features/
+nohup.out
+runs/

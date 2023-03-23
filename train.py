@@ -5,10 +5,10 @@ import time , collections
 import datetime
 import data_helpers
 from concet import TextCNN
-from tensorflow.contrib import learn
+from torch.utils.data import Dataset, DataLoader
 from sklearn.utils import shuffle
 from sklearn.preprocessing import normalize
-import cPickle, time, json
+import pickle, time, json
 from embedding import Word2Vec
 from sklearn.metrics import classification_report as cr
 
@@ -21,35 +21,35 @@ root = os.path.dirname(os.getcwd())
 root = root + '/ConCET'
 
 # Data loading params
-tf.flags.DEFINE_float("dev_sample_percentage", 0.5, "Percentage of the training data to use for validation")
-tf.flags.DEFINE_string("Training_Data", root + "/datasets/Spotlight/final_version/self_dialogue/train_self_dialogue_adan_spotlight.txt", "Data source for the positive data.")
-tf.flags.DEFINE_string("Test_data_entity", root + "/datasets/Spotlight/final_version/self_dialogue/test_self_dialogue_adan_spotlight.txt", "Contains utts + entities")
+tf.compat.v1.flags.DEFINE_float("dev_sample_percentage", 0.5, "Percentage of the training data to use for validation")
+tf.compat.v1.flags.DEFINE_string("Training_Data", root + "/datasets/Spotlight/final_version/self_dialogue/train_self_dialogue_adan_spotlight.txt", "Data source for the positive data.")
+tf.compat.v1.flags.DEFINE_string("Test_data_entity", root + "/datasets/Spotlight/final_version/self_dialogue/test_self_dialogue_adan_spotlight.txt", "Contains utts + entities")
 
 
 # Model Hyperparameters
 # "/Users/aliahmadvand/Desktop/HowTo/Semantic-Clustering/GoogleNews-vectors-negative300.bin"
-tf.flags.DEFINE_string("word2vec", "/Users/aliahmadvand/Desktop/HowTo/Semantic-Clustering/GoogleNews-vectors-negative300.bin", "Word2vec file with pre-trained embeddings (default: None)")
-tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of word embedding")
-tf.flags.DEFINE_integer("embedding_entity_dim", 32, "Dimensionality of entity embedding (default: 16)")
-tf.flags.DEFINE_integer("embedding_pos_dim", 16, "Dimensionality of pos embedding (default: 16)")
-tf.flags.DEFINE_integer("embedding_char_dim", 16, "Dimensionality of entity embedding (default: 16)")
-tf.flags.DEFINE_integer("num_quantized_chars", 40, "num_quantized_chars")
-tf.flags.DEFINE_string("filter_sizes", "2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
-tf.flags.DEFINE_integer("num_filters", 100, "Number of filters per filter size (default: 128)")
-tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
-tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularization lambda (default: 0.0)")
+tf.compat.v1.flags.DEFINE_string("word2vec", "GoogleNews-vectors-negative300.bin", "Word2vec file with pre-trained embeddings (default: None)")
+tf.compat.v1.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of word embedding")
+tf.compat.v1.flags.DEFINE_integer("embedding_entity_dim", 32, "Dimensionality of entity embedding (default: 16)")
+tf.compat.v1.flags.DEFINE_integer("embedding_pos_dim", 16, "Dimensionality of pos embedding (default: 16)")
+tf.compat.v1.flags.DEFINE_integer("embedding_char_dim", 16, "Dimensionality of entity embedding (default: 16)")
+tf.compat.v1.flags.DEFINE_integer("num_quantized_chars", 40, "num_quantized_chars")
+tf.compat.v1.flags.DEFINE_string("filter_sizes", "2,3,5", "Comma-separated filter sizes (default: '3,4,5')")
+tf.compat.v1.flags.DEFINE_integer("num_filters", 100, "Number of filters per filter size (default: 128)")
+tf.compat.v1.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
+tf.compat.v1.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularization lambda (default: 0.0)")
 
 # Training parameters
-tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
-tf.flags.DEFINE_integer("evaluate_every", 25, "Evaluate model on dev set after this many steps (default: 100)")
-tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_integer("num_checkpoints", 10, "Number of checkpoints to store (default: 5)")
+tf.compat.v1.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
+tf.compat.v1.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
+tf.compat.v1.flags.DEFINE_integer("evaluate_every", 25, "Evaluate model on dev set after this many steps (default: 100)")
+tf.compat.v1.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
+tf.compat.v1.flags.DEFINE_integer("num_checkpoints", 10, "Number of checkpoints to store (default: 5)")
 # Misc Parameters
-tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
-tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
+tf.compat.v1.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
+tf.compat.v1.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
 
-FLAGS = tf.flags.FLAGS
+FLAGS = tf.compat.v1.flags.FLAGS
 
 # Data Preparation
 # ==================================================
@@ -67,12 +67,12 @@ char_length = 50
 vocab_processor = np.zeros([len(x_text), max_document_length+1])
 x = data_helpers.fit_transform(x_text, vocab_processor, vocab)
 
-# Build vocabulary
+##### Build vocabulary ####
 vocab_processor_pos = np.zeros([len(data_pos), max_document_length+1])
 x_pos = data_helpers.fit_transform_pos(data_pos, vocab_processor_pos)
 
 
-# Build vocabulary
+##### Build vocabulary ####
 vocab_processor_entity = np.zeros([len(data_entity), max_document_length+1])
 x_entity = data_helpers.fit_transform_pos(data_entity, vocab_processor_entity)
 
@@ -82,10 +82,9 @@ x_shuf, x_char_shuf, y_shuf, handcraft_shuf, bag_of_entity_shuf, x_pos_shuf, x_e
 offset = int(x_shuf.shape[0] * 0)
 x_shuffled, x_char_shuffled, y_shuffled, handcraft_shuffled, x_pos_shuffled, x_entity_shuffled, bag_of_entity_shuffled = x_shuf[offset:], x_char_shuf[offset:], y_shuf[offset:], handcraft_shuf[offset:], x_pos_shuf[offset:], x_entity_shuf[offset:], bag_of_entity_shuf[offset:]
 
-# # Split train/test set
-# dev_sample_index = -1 * int(FLAGS.dev_sample_percentage * float(len(y_shuffled)))
+#### Split train/test set ####
 dev_sample_index = (-1*( len(x) - train_test_dev))
-print dev_sample_index
+print (dev_sample_index)
 x_train, x_dev = x_shuffled[:dev_sample_index], x_shuffled[dev_sample_index:]
 x_char_train, x_char_dev = x_char_shuffled[:dev_sample_index], x_char_shuffled[dev_sample_index:]
 y_train, y_dev = y_shuffled[:dev_sample_index], y_shuffled[dev_sample_index:]
@@ -94,6 +93,32 @@ bag_of_entity_train, bag_of_entity_dev = np.array(bag_of_entity_shuffled[:dev_sa
 x_pos_train, x_pos_dev = x_pos_shuffled[:dev_sample_index], x_pos_shuffled[dev_sample_index:]
 x_entity_train, x_entity_dev = x_entity_shuffled[:dev_sample_index], x_entity_shuffled[dev_sample_index:]
 
+class ConCETDataset(Dataset):
+    def __init__(self, x, handcraft, bag_of_entity, y, x_pos, x_entity, x_char, mode='train'):
+        self.x = x 
+        self.y = y 
+        self.handcraft = handcraft
+        self.bag_of_entity = bag_of_entity
+        self.x_pos = x_pos 
+        self.x_entity = x_entity
+        self.x_char = x_char
+    
+    def __len__(self):
+        return len(self.x)
+    
+    def __getitem__(self, idx):
+        # return {
+        #     'x': self.x[idx], 
+        #     'hand_craft': self.hand_craft[idx], 
+        #     'bag_of_entity': self.bag_of_entity[idx],
+        #     'x_pos': self.x_pos[idx],
+        #     'x_entity': self.x_entity[idx],
+        #     'x_char': self.x_char[idx]
+        # }
+        return [self.x[idx], self.handcraft[idx], self.bag_of_entity[idx], self.y[idx], self.x_pos[idx], self.x_entity[idx], self.x_char[idx]]
+
+train_dataset = ConCETDataset(x=x_train, handcraft=handcraft_train,bag_of_entity=bag_of_entity_train, y=y_train, x_pos=x_pos_train, x_entity=x_entity_train, x_char=x_char_train)
+dev_dataset = ConCETDataset(x=x_dev, handcraft=handcraft_dev,bag_of_entity=bag_of_entity_dev, y=y_dev, x_pos=x_pos_dev, x_entity=x_entity_dev, x_char=x_char_dev)
 
 print("Vocabulary Size: {:d}".format(len(vocab)))
 print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
@@ -102,10 +127,10 @@ print("Train/Dev split: {:d}/{:d}".format(len(y_train), len(y_dev)))
 # ==================================================
 
 with tf.Graph().as_default():
-    session_conf = tf.ConfigProto(
+    session_conf = tf.compat.v1.ConfigProto(
       allow_soft_placement=FLAGS.allow_soft_placement,
       log_device_placement=FLAGS.log_device_placement)
-    sess = tf.Session(config=session_conf)
+    sess = tf.compat.v1.Session(config=session_conf)
     with sess.as_default():
         cnn = TextCNN(
             sequence_length=x_train.shape[1],
@@ -125,7 +150,7 @@ with tf.Graph().as_default():
 
         # Define Training procedure
         global_step = tf.Variable(0, name="global_step", trainable=False)
-        optimizer = tf.train.AdamOptimizer(1e-3)
+        optimizer = tf.compat.v1.train.AdamOptimizer(1e-3)
         grads_and_vars = optimizer.compute_gradients(cnn.loss)
         train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
@@ -133,11 +158,11 @@ with tf.Graph().as_default():
         grad_summaries = []
         for g, v in grads_and_vars:
             if g is not None:
-                grad_hist_summary = tf.summary.histogram("{}/grad/hist".format(v.name), g)
-                sparsity_summary = tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
+                grad_hist_summary = tf.compat.v1.summary.histogram("{}/grad/hist".format(v.name), g)
+                sparsity_summary = tf.compat.v1.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
                 grad_summaries.append(grad_hist_summary)
                 grad_summaries.append(sparsity_summary)
-        grad_summaries_merged = tf.summary.merge(grad_summaries)
+        grad_summaries_merged = tf.compat.v1.summary.merge(grad_summaries)
 
         # Output directory for models and summaries
         timestamp = str(int(time.time()))
@@ -145,45 +170,45 @@ with tf.Graph().as_default():
         print("Writing to {}\n".format(out_dir))
 
         # Summaries for loss and accuracy
-        loss_summary = tf.summary.scalar("loss", cnn.loss)
-        acc_summary = tf.summary.scalar("accuracy", cnn.accuracy)
+        loss_summary = tf.compat.v1.summary.scalar("loss", cnn.loss)
+        acc_summary = tf.compat.v1.summary.scalar("accuracy", cnn.accuracy)
 
         # Train Summaries
-        train_summary_op = tf.summary.merge([loss_summary, acc_summary, grad_summaries_merged])
+        train_summary_op = tf.compat.v1.summary.merge([loss_summary, acc_summary, grad_summaries_merged])
         train_summary_dir = os.path.join(out_dir, "summaries", "train")
-        train_summary_writer = tf.summary.FileWriter(train_summary_dir, sess.graph)
+        train_summary_writer = tf.compat.v1.summary.FileWriter(train_summary_dir, sess.graph)
 
         # Dev summaries
-        dev_summary_op = tf.summary.merge([loss_summary, acc_summary])
+        dev_summary_op = tf.compat.v1.summary.merge([loss_summary, acc_summary])
         dev_summary_dir = os.path.join(out_dir, "summaries", "dev")
-        dev_summary_writer = tf.summary.FileWriter(dev_summary_dir, sess.graph)
+        dev_summary_writer = tf.compat.v1.summary.FileWriter(dev_summary_dir, sess.graph)
 
         # Checkpoint directory. Tensorflow assumes this directory already exists so we need to create it
         checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
         checkpoint_prefix = os.path.join(checkpoint_dir, "model")
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=FLAGS.num_checkpoints)
+        saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables(), max_to_keep=FLAGS.num_checkpoints)
 
         # Write vocabulary
         vocab_data = dict()
         vocab_data['data'] = vocab
         vocab_data['max_doc_len'] = max_document_length+1
         vocab_path =  os.path.join(out_dir, "vocab.json")
-        handel = open(vocab_path, 'wb')
+        handel = open(vocab_path, 'w')
         json.dump(vocab_data,handel)
         handel.close()
 
 
 
         # Initialize all variables
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         count = 0
         vocabulary = dict()
         if FLAGS.word2vec:
             # w2v.load_model('Word2Vector.model')
-            print "\n====>len Vocab after all these {}".format(len(vocab))
+            print ("\n====>len Vocab after all these {}".format(len(vocab)))
             initW = np.random.uniform(-0.25, 0.25, (len(vocab), FLAGS.embedding_dim))
 
             for word in vocab:
@@ -268,29 +293,32 @@ with tf.Graph().as_default():
             #         file_pred.write(text + '\t' + new_predictions[i] + '\t' + new_true_labels[i])
             #         file_pred.write('\n')
 
-            print cr(new_true_labels, new_predictions, digits=3)
+            print(cr(new_true_labels, new_predictions, digits=3))
 
 
         # Generate batches
-        batches = data_helpers.batch_iter(list(zip(x_train, handcraft_train, bag_of_entity_train, y_train, x_pos_train, x_entity_train, x_char_train)), FLAGS.batch_size, FLAGS.num_epochs)
+        # batches = data_helpers.batch_iter(list(zip(x_train, handcraft_train, bag_of_entity_train, y_train, x_pos_train, x_entity_train, x_char_train)), FLAGS.batch_size, FLAGS.num_epochs)        
         # Training loop. For each batch...
+        train_loader = DataLoader(train_dataset, batch_size=FLAGS.batch_size)
         start = time.time()
         all_acc = []
-        for batch in batches:
-            x_batch, hand_batch, bag_of_entity_batch, y_batch, x_pos_batch, x_entity_batch, x_char_batch = zip(*batch)
+        for e in range(FLAGS.num_epochs):
+            for idx, batch in enumerate(train_loader):
+                x_batch, hand_batch, bag_of_entity_batch, y_batch, x_pos_batch, x_entity_batch, x_char_batch = batch 
 
-            # try:
-            train_step(x_batch, hand_batch, bag_of_entity_batch, y_batch, x_pos_batch, x_entity_batch, x_char_batch)
-            # except:
-            #     h =0
-            current_step = tf.train.global_step(sess, global_step)
-            if current_step % FLAGS.evaluate_every == 0:
-                print("\nEvaluation:")
-                accuracy = dev_step(x_dev, handcraft_dev, bag_of_entity_dev, y_dev, x_pos_dev, x_entity_dev, x_char_dev, writer=dev_summary_writer)
-                all_acc.append((accuracy))
-                print "The best so far:  ", max(all_acc)
-                print("")
-            if current_step % FLAGS.checkpoint_every == 0:
-                path = saver.save(sess, checkpoint_prefix, global_step=current_step)
-                print("Saved model checkpoint to {}\n".format(path))
-                print time.time() - start
+                # try:
+                print(x_batch.shape, hand_batch.shape)
+                train_step(x_batch, hand_batch, bag_of_entity_batch, y_batch, x_pos_batch, x_entity_batch, x_char_batch)
+                # except:
+                #     h =0
+                current_step = tf.compat.v1.train.global_step(sess, global_step)
+                if current_step % FLAGS.evaluate_every == 0:
+                    print("\nEvaluation:")
+                    accuracy = dev_step(x_dev, handcraft_dev, bag_of_entity_dev, y_dev, x_pos_dev, x_entity_dev, x_char_dev, writer=dev_summary_writer)
+                    all_acc.append((accuracy))
+                    print ("The best so far:  ", max(all_acc))
+                    print("")
+                if current_step % FLAGS.checkpoint_every == 0:
+                    path = saver.save(sess, checkpoint_prefix, global_step=current_step)
+                    print("Saved model checkpoint to {}\n".format(path))
+                    print (time.time() - start)

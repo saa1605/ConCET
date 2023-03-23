@@ -78,17 +78,17 @@ class IntentClassifier_main:
         self.checkpoint_file = tf.train.latest_checkpoint(self.FLAGS.checkpoint_dir)
         self.graph = tf.Graph()
         with self.graph.as_default():
-            session_conf = tf.ConfigProto(
+            session_conf = tf.compat.v1.ConfigProto(
                 allow_soft_placement=self.FLAGS.allow_soft_placement,
                 log_device_placement=self.FLAGS.log_device_placement)
-            self.sess = tf.Session(config=session_conf)
+            self.sess = tf.compat.v1.Session(config=session_conf)
 
             with self.sess.as_default():
                 # Initlization !
-                self.sess.run(tf.global_variables_initializer())
+                self.sess.run(tf.compat.v1.global_variables_initializer())
 
                 # Load the saved meta graph and restore variables
-                saver = tf.train.import_meta_graph("{}.meta".format(self.checkpoint_file))
+                saver = tf.compat.v1.train.import_meta_graph("{}.meta".format(self.checkpoint_file))
                 saver.restore(self.sess, self.checkpoint_file)
 
                 # Get the placeholders from the graph by name
@@ -134,7 +134,7 @@ class IntentClassifier_main:
             self.rev_ent_dict[self.ent_dict[key]] = key.lower()
 
         self.ent = generate_entities.Entity()
-        print self.labels_order
+        print(self.labels_order)
         self.lmtzr = WordNetLemmatizer().lemmatize
         self.normalize_text("hi")
 
@@ -534,7 +534,7 @@ for label, utt in zip(real_labels,utts):
                     #     intent[0] = ('__label__chitchat', 1)
                     #     check = 1
 
-                    print utt, '   ', intent[0][0]
+                    print( utt, '   ', intent[0][0])
                     prediction = intent.pop(0)
 
                     y_pred.append(prediction[0])
@@ -606,9 +606,9 @@ for i, item in enumerate(ground_truth):
         accuracy += 1
 
 
-print "Accuracy is :   ", accuracy/len(predicted_label)
+print ("Accuracy is :   ", accuracy/len(predicted_label))
 
-print cr(ground_truth, predicted_label, digits=3)
+print (cr(ground_truth, predicted_label, digits=3))
 
 # print "Transition Matrix"
 #
@@ -639,17 +639,17 @@ df.to_excel('result.xlsx', sheet_name='sheet1', index=False)
 
 g = 0
 from sklearn.metrics import f1_score, precision_score, recall_score
-print precision_score(ground_truth, predicted_label, average='micro')
-print recall_score(ground_truth, predicted_label, average='micro')
-print f1_score(ground_truth, predicted_label, average='micro')
+print (precision_score(ground_truth, predicted_label, average='micro'))
+print (recall_score(ground_truth, predicted_label, average='micro'))
+print (f1_score(ground_truth, predicted_label, average='micro'))
 
-print
-print "===============Macto==============="
-print
+print()
+print ("===============Macto===============")
+print()
 
-print precision_score(ground_truth, predicted_label, average='macro')
-print recall_score(ground_truth, predicted_label, average='macro')
-print f1_score(ground_truth, predicted_label, average='macro')
+print( precision_score(ground_truth, predicted_label, average='macro'))
+print( recall_score(ground_truth, predicted_label, average='macro'))
+print( f1_score(ground_truth, predicted_label, average='macro'))
 
 file_data = open('classfication_cet.txt','w')
 for label in classification:

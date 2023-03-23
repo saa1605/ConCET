@@ -2,7 +2,7 @@ import numpy as np
 import re, json, nltk, os
 import itertools
 from collections import Counter
-import cPickle
+import pickle
 from embedding import Word2Vec
 from time import time
 from copy import deepcopy
@@ -11,6 +11,7 @@ import time
 from sklearn.utils import shuffle
 from collections import Counter
 import random
+import sys 
 
 
 root = os.path.dirname(os.getcwd())
@@ -98,7 +99,7 @@ def load_data_and_labels(train_file, test_file):
     data = []
     class_label = dict()
     classl = -1
-
+    print(new_label)
     # with open(train_file) as f:
     for iter, line in enumerate(new_label):
         # split_line = line.strip().split('\t')
@@ -109,7 +110,7 @@ def load_data_and_labels(train_file, test_file):
             one_hot = np.zeros(num_classes)
             if label not in class_label.keys():
                 classl = classl + 1
-                print label
+                print (label)
                 # print classl
                 class_label[label] = classl
             one_hot[class_label[label]] = 1
@@ -150,9 +151,9 @@ def create_vocabulary(training_set, test_set,  train_file, test_file):
     #     vocabulary.update(utt.split())
 
     with open(root + '/handcrafted_features/self_dialogue_train_td', 'rb') as handle:
-        self_dialogue_train_td = cPickle.load(handle)
+        self_dialogue_train_td = pickle.load(handle, encoding='latin1')
     with open(root + '/handcrafted_features/self_dialogue_test_td', 'rb') as handle:
-        self_dialogue_test_td = cPickle.load(handle)
+        self_dialogue_test_td = pickle.load(handle, encoding='latin1')
 
     entity_dict = {}
     ii = 0
@@ -160,35 +161,15 @@ def create_vocabulary(training_set, test_set,  train_file, test_file):
     samples = 0
     handcrafted_text = []
     data_char = []
-
-    # k = int (len(training_set) *  0.05)
-    # indicies = random.sample(xrange(len(training_set)), k)
-    # new_train = [training_set[i] for i in indicies]
-
-
-    # synthetic = open(root + "/datasets/Spotlight/final_version/synthetic_dialogue/train_synthetic_dialogue_adan_spotlight.txt").read().split('\n')
-    # sync_data = []
-    # for line in synthetic:
-    #     if len(line) > 0:
-    #         line1 = json.loads(line)
-    #         label = line1['label']
-    #         if label == "__label__movie" or label == "__label__music" or label == "__label__sports" or label == "__label__fashion" :
-    #            sync_data.append(line)
-    #         elif label == "__label__chitchat":
-    #             # pass
-    #             vocabulary.update(line1['utterance'].split())
-
-
-    # new_train = []
-    # new_train.extend(sync_data)
     training_set = shuffle(training_set)
 
     dialogue_dataset = [training_set, test_set]
+    print("Parsing Dialog Dataset...")
     for iter, dataset in enumerate(dialogue_dataset):
         for i, line in enumerate(dataset):
             if (iter == 0 and i % 1 == 0) or iter == 1:
                 if iter == 0 and i > len(training_set):
-                    print "  im inside....."
+                    print( "  im inside.....")
                     break
 
                 if len(line) > 0:
@@ -199,7 +180,7 @@ def create_vocabulary(training_set, test_set,  train_file, test_file):
                     if iter == 1 and samples == 0:
                         train_test_dev = len(new_data) - 1
                         samples += 1
-                        print "train_test_dev: ", train_test_dev
+                        print ("train_test_dev: ", train_test_dev)
 
                     new_txt = clean_str(text.lower())
                     orig_txt = clean_str(text.lower())
@@ -262,15 +243,15 @@ def create_vocabulary(training_set, test_set,  train_file, test_file):
 
 
 
-    print "=======================> {}".format(len(vocabulary))
+    print( "=======================> {}".format(len(vocabulary)))
 
-    print time.time() - start
+    print( time.time() - start)
     with open('./auxiliary_files/vocabulary.pkl', 'wb') as handle:
-        cPickle.dump(vocabulary, handle)
+        pickle.dump(vocabulary, handle)
 
 
     server = '/data/ali/Semantic-Clustering/word2vec.bin'
-    local = '/Users/aliahmadvand/Documents/AlexaPrize2018/Data/Word2Vec.bin'
+    local = 'GoogleNews-vectors-negative300.bin'
     w2v = Word2Vec(local, vocabulary)
     # w2v.save_model('./auxiliary_files/Word2Vector.model')
     #
@@ -285,7 +266,7 @@ def create_vocabulary(training_set, test_set,  train_file, test_file):
         vocab[item] = count
         count += 1
 
-    print "=======================> {}".format(len(vocab))
+    print( "=======================> {}".format(len(vocab)))
 
     return vocab, w2v, All_sentence_vector, All_onehot_vector, new_data, train_test_dev, new_label, handcrafted_text, data_pos, data_char
 
@@ -408,6 +389,7 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
     Generates a batch iterator for a dataset.
     """
     data = np.array(data)
+    # out = np.empty_like(data, dtype=object)
     data_size = len(data)
     num_batches_per_epoch = int((len(data)-1)/batch_size) + 1
     for epoch in range(num_epochs):
